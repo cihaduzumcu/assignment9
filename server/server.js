@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
-import { getAllBooks, getBookById, isDuplicate, createBook } from './booksStore.js';
-import { parseId, validateBook } from './validate.js';
+import { getAllBooks, getBookById, isDuplicate, createBook, replaceBook } from './booksStore.js';
+import { parseId, isPlainObject, validateBook, pickBookFields } from './validate.js';
 
 const PORT = process.env.PORT || 3000;
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
@@ -47,6 +47,47 @@ app.post('/api/books', async (req, res) => {
 
   const book = await createBook(value);
   res.status(201).location(`/api/books/${book.id}`).json(book);
+});
+
+app.put('/api/books/:id', async (req, res) => {
+  const id = parseId(req.params.id);
+  if (id === null) return sendError(res, 400, '"id" must be a positive integer');
+
+  const { error, value } = validateBook(req.body);
+  if (error) return sendError(res, 400, error);
+
+  const existing = await getBookById(id);
+  if (!existing) return sendError(res, 404, `Book with id ${id} not found`);
+
+  if (await isDuplicate(value.title, value.author, id)) {
+    return sendError(res, 409, 'A book with this title and author already exists');
+  }
+
+  const book = await replaceBook(id, value);
+  res.json(book);
+});
+
+app.patch('/api/books/:id', async (req, res) => {
+  const id = parseId(req.params.id);
+  if (id === null) return sendError(res, 400, '"id" must be a positive integer');
+
+  if (!isPlainObject(req.body)) {
+    return sendError(res, 400, 'Request body must be a JSON object');
+  }
+
+  const existing = await getBookById(id);
+  if (!existing) return sendError(res, 404, `Book with id ${id} not found`);
+
+  const merged = { ...existing, ...pickBookFields(req.body) };
+  const { error, value } = validateBook(merged);
+  if (error) return sendError(res, 400, error);
+
+  if (await isDuplicate(value.title, value.author, id)) {
+    return sendError(res, 409, 'A book with this title and author already exists');
+  }
+
+  const book = await replaceBook(id, value);
+  res.json(book);
 });
 
 app.listen(PORT, () => {
