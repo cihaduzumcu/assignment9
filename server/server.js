@@ -167,6 +167,25 @@ app.get('/api/stats', async (req, res) => {
   });
 });
 
+app.get('/api/crash', async () => {
+  throw new Error('Deliberate crash for testing');
+});
+
+app.use('/api', (req, res) => {
+  sendError(res, 404, 'Not found');
+});
+
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+
+  if (err.type === 'entity.parse.failed') {
+    return sendError(res, 400, 'Malformed JSON in request body');
+  }
+
+  console.error(err);
+  sendError(res, 500, 'Something went wrong');
+});
+
 app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT} (allowed origin: ${CLIENT_ORIGIN})`);
 });
