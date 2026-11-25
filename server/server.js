@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
-import { getAllBooks, getBookById } from './booksStore.js';
-import { parseId } from './validate.js'
+import { getAllBooks, getBookById, isDuplicate, createBook } from './booksStore.js';
+import { parseId, validateBook } from './validate.js';
 
 const PORT = process.env.PORT || 3000;
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
@@ -35,6 +35,18 @@ app.get('/api/books/:id', async (req, res) => {
   if (!book) return sendError(res, 404, `Book with id ${id} not found`);
 
   res.json(book);
+});
+
+app.post('/api/books', async (req, res) => {
+  const { error, value } = validateBook(req.body);
+  if (error) return sendError(res, 400, error);
+
+  if (await isDuplicate(value.title, value.author)) {
+    return sendError(res, 409, 'A book with this title and author already exists');
+  }
+
+  const book = await createBook(value);
+  res.status(201).location(`/api/books/${book.id}`).json(book);
 });
 
 app.listen(PORT, () => {
