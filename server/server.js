@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { getAllBooks, getBookById, isDuplicate, createBook, replaceBook, deleteBook } from './booksStore.js';
-import { parseId, isPlainObject, validateBook, pickBookFields } from './validate.js';
+import { parseId, isPlainObject, validateBook, pickBookFields, validateListQuery } from './validate.js';
 
 const PORT = process.env.PORT || 3000;
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
@@ -11,7 +11,6 @@ const app = express();
 app.use(cors({ origin: CLIENT_ORIGIN }));
 app.use(express.json());
 
-// Simple request logger
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.originalUrl}`);
   next();
@@ -21,10 +20,54 @@ function sendError(res, status, message) {
   return res.status(status).json({ error: message });
 }
 
+//Helpers for the list
+
+function compareBooks(a, b, sort) {
+  if (sort === 'title' || sort === 'author') {
+    return a[sort].localeCompare(b[sort], undefined, { sensitivity: 'base' });
+  }
+  return a[sort] - b[sort];
+}
+
+function applyListOptions(books, options) {
+  const { genre, read, q, sort, order, limit, page } = options;
+
+  let result = books.filter((book) => {
+    if (genre !== null && book.genre !== genre) return false;
+    if (read !== null && book.read !== read) return false;
+    if (
+      q !== '' &&
+      !book.title.toLowerCase().includes(q) &&
+      !book.author.toLowerCase().includes(q)
+    ) {
+      return false;
+    }
+    return true;
+  });
+
+  const direction = order === 'desc' ? -1 : 1;
+  result = [...result].sort((a, b) => {
+    if (sort === 'rating') {
+      // Books without a rating always go last, in both directions.
+      if (a.rating === null && b.rating === null) return a.id - b.id;
+      if (a.rating === null) return 1;
+      if (b.rating === null) return -1;
+    }
+    const diff = compareBooks(a, b, sort);
+    return diff !== 0 ? diff * direction : a.id - b.id;
+  });
+
+  const start = (page - 1) * limit;
+  return result.slice(start, start + limit);
+}
+
 //routes
 app.get('/api/books', async (req, res) => {
+  const { error, value } = validateListQuery(req.query);
+  if (error) return sendError(res, 400, error);
+
   const books = await getAllBooks();
-  res.json(books);
+  res.json(applyListOptions(books, value));
 });
 
 app.get('/api/books/:id', async (req, res) => {
