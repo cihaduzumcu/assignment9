@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { getBooks, getStats } from './api/books.js';
+import { getBooks, getStats, createBook, replaceBook } from './api/books.js';
 import BookList from './components/BookList.jsx';
 import BookControls from './components/BookControls.jsx';
 import StatsPanel from './components/StatsPanel.jsx';
+import BookForm from './components/BookForm.jsx';
 
 const INITIAL_FILTERS = { q: '', genre: '', read: '', sort: '', order: 'asc' };
 
@@ -14,6 +15,8 @@ export default function App() {
   const [stats, setStats] = useState(null);
   const [statsError, setStatsError] = useState(null);
   const [statsKey, setStatsKey] = useState(0);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [editingBook, setEditingBook] = useState(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -34,7 +37,7 @@ export default function App() {
 
     load();
     return () => controller.abort();
-  }, [filters]);
+  }, [filters, reloadKey]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -57,14 +60,42 @@ export default function App() {
   function refreshStats() {
     setStatsKey((key) => key + 1);
   }
+  
+  async function handleCreate(book) {
+    await createBook(book);
+    setReloadKey((key) => key + 1);
+    refreshStats();
+  }
+
+  async function handleReplace(book) {
+    const updated = await replaceBook(editingBook.id, book);
+    setBooks((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
+    setEditingBook(null);
+    refreshStats();
+  }
 
   return (
     <main className="app">
       <h1>Reading List</h1>
       <StatsPanel stats={stats} error={statsError} />
+      {editingBook ? (
+        <BookForm
+          key={editingBook.id}
+          initialBook={editingBook}
+          onSubmit={handleReplace}
+          onCancel={() => setEditingBook(null)}
+        />
+      ) : (
+        <BookForm onSubmit={handleCreate} />
+      )}
       <h2>Books</h2>
       <BookControls filters={filters} onChange={setFilters} />
-      <BookList books={books} loading={loading} error={error} />
+      <BookList
+        books={books}
+        loading={loading}
+        error={error}
+        onEdit={setEditingBook}
+      />
     </main>
   );
 }
