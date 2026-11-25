@@ -1,0 +1,59 @@
+body {
+  font-family: system-ui, sans-serif;
+  margin: 0;
+  background: #f7f7f7;
+  color: #222;
+}
+
+.app {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.controls,
+.book-actions,
+.form-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.book-form {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 400px;
+  margin-bottom: 1.5rem;
+}
+
+.book-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.book-list {
+  list-style: none;
+  padding: 0;
+}
+
+.book {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.stats {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.error {
+  color: #b00020;
+}
