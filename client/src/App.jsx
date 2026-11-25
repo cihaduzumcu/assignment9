@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { getBooks, getStats, createBook, replaceBook } from './api/books.js';
-import BookList from './components/BookList.jsx';
+import { getBooks, getStats, createBook, replaceBook, updateBook, deleteBook } from './api/books.js';
 import BookControls from './components/BookControls.jsx';
-import StatsPanel from './components/StatsPanel.jsx';
+import BookList from './components/BookList.jsx';
 import BookForm from './components/BookForm.jsx';
+import StatsPanel from './components/StatsPanel.jsx';
 
 const INITIAL_FILTERS = { q: '', genre: '', read: '', sort: '', order: 'asc' };
 
@@ -12,10 +12,12 @@ export default function App() {
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
   const [stats, setStats] = useState(null);
   const [statsError, setStatsError] = useState(null);
   const [statsKey, setStatsKey] = useState(0);
-  const [reloadKey, setReloadKey] = useState(0);
+
   const [editingBook, setEditingBook] = useState(null);
 
   useEffect(() => {
@@ -60,7 +62,7 @@ export default function App() {
   function refreshStats() {
     setStatsKey((key) => key + 1);
   }
-  
+
   async function handleCreate(book) {
     await createBook(book);
     setReloadKey((key) => key + 1);
@@ -74,10 +76,25 @@ export default function App() {
     refreshStats();
   }
 
+  async function handleUpdate(id, changes) {
+    const updated = await updateBook(id, changes);
+    setBooks((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
+    refreshStats();
+  }
+
+  async function handleDelete(id) {
+    await deleteBook(id);
+    setBooks((prev) => prev.filter((b) => b.id !== id));
+    if (editingBook?.id === id) setEditingBook(null);
+    refreshStats();
+  }
+
   return (
     <main className="app">
       <h1>Reading List</h1>
+
       <StatsPanel stats={stats} error={statsError} />
+
       {editingBook ? (
         <BookForm
           key={editingBook.id}
@@ -88,6 +105,7 @@ export default function App() {
       ) : (
         <BookForm onSubmit={handleCreate} />
       )}
+
       <h2>Books</h2>
       <BookControls filters={filters} onChange={setFilters} />
       <BookList
@@ -95,6 +113,8 @@ export default function App() {
         loading={loading}
         error={error}
         onEdit={setEditingBook}
+        onUpdate={handleUpdate}
+        onDelete={handleDelete}
       />
     </main>
   );
