@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { getAllBooks, getBookById, isDuplicate, createBook, replaceBook } from './booksStore.js';
+import { getAllBooks, getBookById, isDuplicate, createBook, replaceBook, deleteBook } from './booksStore.js';
 import { parseId, isPlainObject, validateBook, pickBookFields } from './validate.js';
 
 const PORT = process.env.PORT || 3000;
@@ -88,6 +88,16 @@ app.patch('/api/books/:id', async (req, res) => {
 
   const book = await replaceBook(id, value);
   res.json(book);
+});
+
+app.delete('/api/books/:id', async (req, res) => {
+  const id = parseId(req.params.id);
+  if (id === null) return sendError(res, 400, '"id" must be a positive integer');
+
+  const deleted = await deleteBook(id);
+  if (!deleted) return sendError(res, 404, `Book with id ${id} not found`);
+
+  res.status(204).end();
 });
 
 app.listen(PORT, () => {
